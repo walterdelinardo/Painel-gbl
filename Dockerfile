@@ -1,36 +1,39 @@
-# -- Etapa de Construção (Build Stage) --
-FROM node:22-alpine AS builder
+# Stage 1: Build da aplicação
+FROM node:18-alpine AS build-stage
 
-# Definir o diretório de trabalho
+# Define o diretório de trabalho dentro do contêiner
 WORKDIR /app
 
-# Copiar os arquivos de manifesto do pacote
-COPY package.json pnpm-lock.yaml ./
+# Copia os arquivos de configuração do Node (package.json e afins)
+COPY package*.json ./
 
-# Instalar as dependências do pnpm
-RUN npm install -g pnpm && pnpm install
+# Instala as dependências da aplicação
+RUN npm install
 
-# Copiar o restante do código-fonte
+# Copia todo o código da aplicação para o contêiner
 COPY . .
 
-# Construir a aplicação para produção
-RUN pnpm run build
+# Constrói a aplicação, gerando os arquivos estáticos na pasta 'dist'
+RUN npm run build
 
-# -- Etapa de Servir (Serve Stage) --
-# Usar uma imagem base Nginx leve para servir os arquivos estáticos
-FROM nginx:alpine
+# Stage 2: Servindo a aplicação com Nginx
+FROM nginx:1.24-alpine as production-stage
 
-# Remover a configuração padrão do Nginx
-RUN rm -rf /etc/nginx/conf.d
+# Copia o arquivo de configuração do Nginx da sua aplicação (se você tiver)
+# Se você não tiver um arquivo 'nginx.conf', pode remover esta linha.
+# O arquivo nginx.conf que você mostrou na imagem pode ser usado aqui.
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Copiar a configuração personalizada do Nginx
+# Remove o arquivo de configuração padrão do Nginx
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copia a configuração do Nginx para servir a aplicação
 COPY ./nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copiar os arquivos de construção da etapa 'builder' para o Nginx
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copia os arquivos estáticos construídos na etapa anterior para o Nginx
+COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-# Expor a porta 80 do Nginx
+# A porta que o Nginx está exposto
 EXPOSE 80
 
-# Comando padrão para iniciar o Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Comando para iniciar o servidor Nginx
