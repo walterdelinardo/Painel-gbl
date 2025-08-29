@@ -3,5 +3,6 @@ Flask-SQLAlchemy
 Flask-CORS
 gunicorn
 fpdf2
+psycopg2-binary
 
 
